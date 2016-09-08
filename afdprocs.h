@@ -649,42 +649,14 @@ AfdCloseEndpoint (
     IN PAFD_ENDPOINT Endpoint
     );
 
-#if REFERENCE_DEBUG
-
-VOID
-AfdReferenceEndpoint (
-    IN PAFD_ENDPOINT Endpoint,
-    IN PVOID Info1,
-    IN PVOID Info2
-    );
-
 VOID
 AfdDereferenceEndpoint (
-    IN PAFD_ENDPOINT Endpoint,
-    IN PVOID Info1,
-    IN PVOID Info2
-    );
+                        IN PAFD_ENDPOINT Endpoint
+                        );
 
-#define REFERENCE_ENDPOINT(_a) AfdReferenceEndpoint((_a),(PVOID)__FILE__,(PVOID)__LINE__)
-#define REFERENCE_ENDPOINT2(_a,_b,_c) AfdReferenceEndpoint((_a),(_b),(_c))
-
-#define DEREFERENCE_ENDPOINT(_a) AfdDereferenceEndpoint((_a),(PVOID)__FILE__,(PVOID)__LINE__)
-#define DEREFERENCE_ENDPOINT2(_a,_b,_c) AfdDereferenceEndpoint((_a),(PVOID)__FILE__,(PVOID)__LINE__)
-
-#else
-
-VOID
-AfdDereferenceEndpoint (
-    IN PAFD_ENDPOINT Endpoint
-    );
-
-#define REFERENCE_ENDPOINT(_a) InterlockedIncrement( &(_a)->ReferenceCount )
-#define REFERENCE_ENDPOINT2(_a,_b,_c) InterlockedIncrement( &(_a)->ReferenceCount )
-
+#define   REFERENCE_ENDPOINT(_a) InterlockedIncrement( &(_a)->ReferenceCount )
 #define DEREFERENCE_ENDPOINT(_a) AfdDereferenceEndpoint((_a))
-#define DEREFERENCE_ENDPOINT2(_a,_b,_c) AfdDereferenceEndpoint((_a))
 
-#endif
 
 VOID
 AfdRefreshEndpoint (

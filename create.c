@@ -77,7 +77,7 @@ Return Value:
     }
     else
     {
-        UNICODE_STRING transportDeviceName;
+        UNICODE_STRING usTransportDeviceName;
 
         openPacket = (PAFD_OPEN_PACKET)
             (eaBuffer->EaName + eaBuffer->EaNameLength + 1);
@@ -103,9 +103,9 @@ Return Value:
         //
         // Set up a string that describes the transport device name.
         //
-        transportDeviceName.Buffer = openPacket->TransportDeviceName;
-        transportDeviceName.Length = (USHORT)openPacket->TransportDeviceNameLength;
-        transportDeviceName.MaximumLength = transportDeviceName.Length + sizeof(WCHAR);
+        usTransportDeviceName.Buffer = openPacket->TransportDeviceName;
+        usTransportDeviceName.Length = (USHORT)openPacket->TransportDeviceNameLength;
+        usTransportDeviceName.MaximumLength = usTransportDeviceName.Length + sizeof(WCHAR);
 
         //
         // If this is an open of a raw endpoint, perform an access check.
@@ -140,8 +140,8 @@ Return Value:
                                 &status
                                 );
 
-
-            if (privileges) {
+            if (privileges)
+            {
                 (VOID) SeAppendPrivileges(
                            accessState,
                            privileges
@@ -149,14 +149,16 @@ Return Value:
                 SeFreePrivileges(privileges);
             }
 
-            if (accessGranted) {
+            if (accessGranted)
+            {
                 accessState->PreviouslyGrantedAccess |= grantedAccess;
                 accessState->RemainingDesiredAccess &= ~( grantedAccess | MAXIMUM_ALLOWED );
             }
 
             SeUnlockSubjectContext(&accessState->SubjectSecurityContext);
 
-            if (!accessGranted) {
+            if (!accessGranted)
+            {
                 return STATUS_ACCESS_DENIED;
             }
         }
@@ -167,7 +169,7 @@ Return Value:
 
         status = AfdAllocateEndpoint(
                      &endpoint,
-                     &transportDeviceName,
+                     &usTransportDeviceName,
                      openPacket->GroupID
                      );
 
@@ -212,7 +214,7 @@ Return Value:
     {
         if ( eaBuffer == NULL )
         {
-           DEREFERENCE_ENDPOINT( endpoint );
+           AfdDereferenceEndpoint( endpoint );
            AfdCloseEndpoint( endpoint );
 
            return STATUS_INVALID_PARAMETER;
@@ -255,7 +257,7 @@ Return Value:
         {
            KdPrint(( "AfdCreate: PsChargePoolQuota failed.\n" ));
 
-           DEREFERENCE_ENDPOINT( endpoint );
+           AfdDereferenceEndpoint( endpoint );
            AfdCloseEndpoint( endpoint );
 
            return STATUS_QUOTA_EXCEEDED;
@@ -272,8 +274,7 @@ Return Value:
     //
     // The open worked.  Dereference the endpoint and return success.
     //
-
-    DEREFERENCE_ENDPOINT( endpoint );
+    AfdDereferenceEndpoint( endpoint );
 
     return STATUS_SUCCESS;
 

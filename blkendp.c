@@ -38,9 +38,6 @@ AfdGetTransportInfo (
 #pragma alloc_text( PAGE, AfdGetTransportInfo )
 #pragma alloc_text( PAGE, AfdRefreshEndpoint )
 #pragma alloc_text( PAGEAFD, AfdDereferenceEndpoint )
-#if REFERENCE_DEBUG
-#pragma alloc_text( PAGEAFD, AfdReferenceEndpoint )
-#endif
 #pragma alloc_text( PAGEAFD, AfdFreeQueuedConnections )
 #endif
 
@@ -48,7 +45,7 @@ AfdGetTransportInfo (
 NTSTATUS
 AfdAllocateEndpoint (
     OUT PAFD_ENDPOINT * NewEndpoint,
-    IN PUNICODE_STRING TransportDeviceName,
+    IN PUNICODE_STRING pusTransportDeviceName,
     IN LONG GroupID
     )
 
@@ -60,11 +57,9 @@ Routine Description:
 
 Arguments:
 
-    NewEndpoint - Receives a pointer to the new endpoint structure if
-        successful.
+    NewEndpoint - Receives a pointer to the new endpoint structure if successful.
 
-    TransportDeviceName - the name of the TDI transport provider
-        corresponding to the endpoint structure.
+    TransportDeviceName - the name of the TDI transport provider.
 
     GroupID - Identifies the group ID for the new endpoint.
 
@@ -75,26 +70,26 @@ Return Value:
 --*/
 
 {
+    NTSTATUS status;
     PAFD_ENDPOINT endpoint;
     PAFD_TRANSPORT_INFO transportInfo;
-    NTSTATUS status;
     AFD_GROUP_TYPE groupType;
 
     PAGED_CODE( );
 
-    DEBUG *NewEndpoint = NULL;
+    if (NewEndpoint)
+        *NewEndpoint = NULL;
 
-    if ( TransportDeviceName != NULL ) {
+    if ( pusTransportDeviceName )
+    {
         //
-        // First, make sure that the transport device name is stored globally
-        // for AFD.  Since there will typically only be a small number of
-        // transport device names, we store the name strings once globally
-        // for access by all endpoints.
+        // First, make sure that the transport device name is stored globally for AFD.
+        // Since there will typically only be a small number of transport device names,
+        // we store the name strings once globally for access by all endpoints.
         //
-
-        transportInfo = AfdGetTransportInfo( TransportDeviceName );
-
-        if ( transportInfo == NULL ) {
+        transportInfo = AfdGetTransportInfo( pusTransportDeviceName );
+        if ( transportInfo == NULL )
+        {
             return STATUS_INSUFFICIENT_RESOURCES;
         }
     }
@@ -103,7 +98,8 @@ Return Value:
     // Validate the incoming group ID, allocate a new one if necessary.
     //
 
-    if( !AfdGetGroup( &GroupID, &groupType ) ) {
+    if( !AfdGetGroup( &GroupID, &groupType ) )
+    {
         return STATUS_INVALID_PARAMETER;
     }
 
@@ -117,8 +113,10 @@ Return Value:
                    AFD_ENDPOINT_POOL_TAG
                    );
 
-    if ( endpoint == NULL ) {
-        if( GroupID != 0 ) {
+    if ( endpoint == NULL )
+    {
+        if( GroupID != 0 )
+        {
             AfdDereferenceGroup( GroupID );
         }
         return STATUS_INSUFFICIENT_RESOURCES;
@@ -127,8 +125,8 @@ Return Value:
     RtlZeroMemory( endpoint, sizeof(AFD_ENDPOINT) );
 
     //
-    // Initialize the reference count to 2--one for the caller's
-    // reference, one for the active reference.
+    // Initialize the reference count to 2 -
+    // one for the caller's reference, one for the active reference.
     //
 
     endpoint->ReferenceCount = 2;
@@ -136,12 +134,14 @@ Return Value:
     //
     // Initialize the endpoint structure.
     //
-
-    if ( TransportDeviceName == NULL ) {
+    if ( pusTransportDeviceName == NULL )
+    {
         endpoint->Type = AfdBlockTypeHelper;
         endpoint->State = AfdEndpointStateInvalid;
         endpoint->EndpointType = AfdEndpointTypeUnknown;
-    } else {
+    }
+    else
+    {
         endpoint->Type = AfdBlockTypeEndpoint;
         endpoint->State = AfdEndpointStateOpen;
         endpoint->TransportInfo = transportInfo;
@@ -151,25 +151,6 @@ Return Value:
     endpoint->GroupType = groupType;
 
     KeInitializeSpinLock( &endpoint->SpinLock );
-
-#if REFERENCE_DEBUG
-    {
-        PAFD_REFERENCE_DEBUG referenceDebug;
-
-        referenceDebug = AFD_ALLOCATE_POOL(
-                             NonPagedPool,
-                             sizeof(AFD_REFERENCE_DEBUG) * MAX_REFERENCE,
-                             AFD_DEBUG_POOL_TAG
-                             );
-
-        if ( referenceDebug != NULL ) {
-            RtlZeroMemory( referenceDebug, sizeof(AFD_REFERENCE_DEBUG) * MAX_REFERENCE );
-        }
-
-        endpoint->CurrentReferenceSlot = -1;
-        endpoint->ReferenceDebug = referenceDebug;
-    }
-#endif
 
 #if DBG
     InitializeListHead( &endpoint->OutstandingIrpListHead );
@@ -210,23 +191,6 @@ VOID
 AfdCloseEndpoint (
     IN PAFD_ENDPOINT Endpoint
     )
-
-/*++
-
-Routine Description:
-
-    Initiates the closing of an AFD endpoint structure.
-
-Arguments:
-
-    Endpoint - a pointer to the AFD endpoint structure.
-
-Return Value:
-
-    None.
-
---*/
-
 {
     PAFD_CONNECTION connection;
 
@@ -236,7 +200,8 @@ Return Value:
         KdPrint(( "AfdCloseEndpoint: closing endpoint at %lx\n", Endpoint ));
     }
 
-    if ( Endpoint->State == AfdEndpointStateClosing ) {
+    if ( Endpoint->State == AfdEndpointStateClosing )
+    {
         return;
     }
 
@@ -255,7 +220,8 @@ Return Value:
     //
 
     connection = AFD_CONNECTION_FROM_ENDPOINT( Endpoint );
-    if ( connection != NULL ) {
+    if ( connection != NULL )
+    {
         DEREFERENCE_CONNECTION( Endpoint->Common.VcConnecting.Connection );
     }
 
@@ -576,26 +542,15 @@ Return Value:
 } // AfdFreeEndpoint
 
 
-#if REFERENCE_DEBUG
-VOID
-AfdDereferenceEndpoint (
-    IN PAFD_ENDPOINT Endpoint,
-    IN PVOID Info1,
-    IN PVOID Info2
-    )
-#else
 VOID
 AfdDereferenceEndpoint (
     IN PAFD_ENDPOINT Endpoint
     )
-#endif
-
 /*++
 
 Routine Description:
 
-    Dereferences an AFD endpoint and calls the routine to free it if
-    appropriate.
+    Dereferences an AFD endpoint and calls the routine to free it if appropriate.
 
 Arguments:
 
@@ -606,34 +561,9 @@ Return Value:
     None.
 
 --*/
-
 {
     LONG result;
     KIRQL oldIrql;
-
-#if REFERENCE_DEBUG
-
-    PAFD_REFERENCE_DEBUG slot;
-    LONG newSlot;
-
-    KdPrint(( "AfdDereferenceEndpoint: endpoint at %lx, new refcnt %ld\n",
-        Endpoint, Endpoint->ReferenceCount-1 ));
-
-    ASSERT( IS_AFD_ENDPOINT_TYPE( Endpoint ) );
-    ASSERT( Endpoint->ReferenceCount > 0 );
-    ASSERT( Endpoint->ReferenceCount != 0xDAADF00D );
-
-    if ( Endpoint->ReferenceDebug != NULL ) {
-        newSlot = InterlockedIncrement( &Endpoint->CurrentReferenceSlot );
-        slot = &Endpoint->ReferenceDebug[newSlot % MAX_REFERENCE];
-
-        slot->Action = 0xFFFFFFFF;
-        slot->NewCount = Endpoint->ReferenceCount - 1;
-        slot->Info1 = Info1;
-        slot->Info2 = Info2;
-    }
-
-#endif
 
     //
     // We must hold AfdSpinLock while doing the dereference and check
@@ -678,61 +608,6 @@ Return Value:
     }
 
 } // AfdDereferenceEndpoint
-
-#if REFERENCE_DEBUG
-
-VOID
-AfdReferenceEndpoint (
-    IN PAFD_ENDPOINT Endpoint,
-    IN PVOID Info1,
-    IN PVOID Info2
-    )
-
-/*++
-
-Routine Description:
-
-    References an AFD endpoint.
-
-Arguments:
-
-    Endpoint - a pointer to the AFD endpoint structure.
-
-Return Value:
-
-    None.
-
---*/
-
-{
-
-    PAFD_REFERENCE_DEBUG slot;
-    LONG newSlot;
-    LONG result;
-
-    ASSERT( Endpoint->ReferenceCount > 0 );
-
-    if( Endpoint->ReferenceDebug != NULL ) {
-        newSlot = InterlockedIncrement( &Endpoint->CurrentReferenceSlot );
-        slot = &Endpoint->ReferenceDebug[newSlot % MAX_REFERENCE];
-
-        slot->Action = 1;
-        slot->NewCount = Endpoint->ReferenceCount + 1;
-        slot->Info1 = Info1;
-        slot->Info2 = Info2;
-    }
-
-    IF_DEBUG(ENDPOINT) {
-        KdPrint(( "AfdReferenceEndpoint: endpoint at %lx, new refcnt %ld\n",
-                      Endpoint, Endpoint->ReferenceCount+1 ));
-    }
-
-    ASSERT( Endpoint->ReferenceCount < 0xFFFF );
-
-    result = InterlockedIncrement( &Endpoint->ReferenceCount );
-
-} // AfdReferenceEndpoint
-#endif
 
 
 VOID
