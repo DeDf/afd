@@ -612,15 +612,12 @@ Return Value:
     KIRQL oldIrql;
 
 #if REFERENCE_DEBUG
+
     PAFD_REFERENCE_DEBUG slot;
     LONG newSlot;
-#endif
 
-#if REFERENCE_DEBUG
-    IF_DEBUG(ENDPOINT) {
-        KdPrint(( "AfdDereferenceEndpoint: endpoint at %lx, new refcnt %ld\n",
-                      Endpoint, Endpoint->ReferenceCount-1 ));
-    }
+    KdPrint(( "AfdDereferenceEndpoint: endpoint at %lx, new refcnt %ld\n",
+        Endpoint, Endpoint->ReferenceCount-1 ));
 
     ASSERT( IS_AFD_ENDPOINT_TYPE( Endpoint ) );
     ASSERT( Endpoint->ReferenceCount > 0 );
@@ -662,8 +659,8 @@ Return Value:
 
     AfdReleaseSpinLock( &AfdSpinLock, oldIrql );
 
-    if ( result == 0 ) {
-
+    if ( result == 0 )
+    {
         ASSERT( Endpoint->State == AfdEndpointStateClosing );
 
         //
@@ -678,7 +675,6 @@ Return Value:
             AfdFreeEndpoint,
             &Endpoint->WorkItem
             );
-
     }
 
 } // AfdDereferenceEndpoint

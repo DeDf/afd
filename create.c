@@ -26,14 +26,12 @@ Revision History:
 
 extern PSECURITY_DESCRIPTOR AfdRawSecurityDescriptor;
 
-
 
 NTSTATUS
 AfdCreate (
     IN PIRP Irp,
     IN PIO_STACK_LOCATION IrpSp
     )
-
 /*++
 
 Routine Description:
@@ -53,32 +51,19 @@ Return Value:
     NTSTATUS -- Indicates whether the request was successfully queued.
 
 --*/
-
 {
-    PAFD_OPEN_PACKET openPacket;
-    PAFD_ENDPOINT endpoint;
-    PFILE_FULL_EA_INFORMATION eaBuffer;
-    UNICODE_STRING transportDeviceName;
     NTSTATUS status;
+    PAFD_ENDPOINT endpoint = NULL;
+    PAFD_OPEN_PACKET openPacket;
+    PFILE_FULL_EA_INFORMATION eaBuffer = Irp->AssociatedIrp.SystemBuffer;
 
-    PAGED_CODE( );
-
-    DEBUG endpoint = NULL;
-
-    //
-    // Find the open packet from the EA buffer in the system buffer of
-    // the associated IRP.  Fail the request if there was no EA
-    // buffer specified.
-    //
-
-    eaBuffer = Irp->AssociatedIrp.SystemBuffer;
+    PAGED_CODE( ); 
 
     if ( eaBuffer == NULL )
     {
         //
         // Allocate an AFD "helper" endpoint.
         //
-
         status = AfdAllocateEndpoint(
                      &endpoint,
                      NULL,
@@ -89,42 +74,41 @@ Return Value:
         {
             return status;
         }
+    }
+    else
+    {
+        UNICODE_STRING transportDeviceName;
 
-    } else {
-
-        openPacket = (PAFD_OPEN_PACKET)(eaBuffer->EaName +
-                                            eaBuffer->EaNameLength + 1);
+        openPacket = (PAFD_OPEN_PACKET)
+            (eaBuffer->EaName + eaBuffer->EaNameLength + 1);
 
         //
         // Validate parameters in the open packet.
         //
-
         if ( openPacket->EndpointType < MIN_AFD_ENDPOINT_TYPE ||
-                 openPacket->EndpointType > MAX_AFD_ENDPOINT_TYPE ) {
+             openPacket->EndpointType > MAX_AFD_ENDPOINT_TYPE )
+        {
             return STATUS_INVALID_PARAMETER;
         }
 
         //
-        // Make sure that the transport address fits within the specified
-        // EA buffer.
+        // Make sure that the transport address fits within the specified EA buffer.
         //
-
         if ( eaBuffer->EaValueLength <
-                 sizeof(AFD_OPEN_PACKET) + openPacket->TransportDeviceNameLength ) {
+                 sizeof(AFD_OPEN_PACKET) + openPacket->TransportDeviceNameLength )
+        {
             return STATUS_ACCESS_VIOLATION;
         }
 
         //
         // Set up a string that describes the transport device name.
         //
-
         transportDeviceName.Buffer = openPacket->TransportDeviceName;
         transportDeviceName.Length = (USHORT)openPacket->TransportDeviceNameLength;
-        transportDeviceName.MaximumLength =
-            transportDeviceName.Length + sizeof(WCHAR);
+        transportDeviceName.MaximumLength = transportDeviceName.Length + sizeof(WCHAR);
 
         //
-        // If this is an open of a  raw endpoint, perform an access check.
+        // If this is an open of a raw endpoint, perform an access check.
         //
         if ( ( openPacket->EndpointType == AfdEndpointTypeRaw ) &&
              !AfdDisableRawSecurity
@@ -187,7 +171,8 @@ Return Value:
                      openPacket->GroupID
                      );
 
-        if( !NT_SUCCESS(status) ) {
+        if( !NT_SUCCESS(status) )
+        {
             return status;
         }
     }
@@ -195,40 +180,38 @@ Return Value:
     ASSERT( endpoint != NULL );
 
     //
-    // Set up a pointer to the endpoint in the file object so that we
-    // can find the endpoint in future calls.
+    // Set the endpoint in FileObject->FsContext.
     //
-
     IrpSp->FileObject->FsContext = endpoint;
 
-    IF_DEBUG(OPEN_CLOSE) {
-        KdPrint(( "AfdCreate: opened file object = %lx, endpoint = %lx\n",
-                      IrpSp->FileObject, endpoint ));
-
-    }
+    KdPrint(( "AfdCreate: opened file object = %lx, endpoint = %lx\n",
+        IrpSp->FileObject, endpoint ));
 
     //
     // Remember the type of endpoint that this is.  If this is a datagram
     // endpoint, change the block type to reflect this.
     //
 
-    if ( eaBuffer != NULL ) {
-        if (openPacket->EndpointType == AfdEndpointTypeRaw) {
+    if ( eaBuffer != NULL )
+    {
+        if (openPacket->EndpointType == AfdEndpointTypeRaw)
+        {
             //
             // There is no other distinction between a raw endpoint and
             // a datagram endpoint, so we mark them all as datagram.
             //
             endpoint->EndpointType = AfdEndpointTypeDatagram;
         }
-        else {
+        else
+        {
             endpoint->EndpointType = openPacket->EndpointType;
         }
     }
 
-    if ( IS_DGRAM_ENDPOINT(endpoint) ) {
-
-        if ( eaBuffer == NULL ) {
-
+    if ( IS_DGRAM_ENDPOINT(endpoint) )
+    {
+        if ( eaBuffer == NULL )
+        {
            DEREFERENCE_ENDPOINT( endpoint );
            AfdCloseEndpoint( endpoint );
 
@@ -250,8 +233,8 @@ Return Value:
         // bufferring we'll do on behalf of the process.
         //
 
-        try {
-
+        try
+        {
             PsChargePoolQuota(
                 endpoint->OwningProcess,
                 NonPagedPool,
