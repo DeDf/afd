@@ -95,7 +95,7 @@ Return Value:
     // If the client wants a unique address, make sure that there are no
     // other sockets with this address.
 
-    ExAcquireResourceExclusive( AfdResource, TRUE );
+    ExAcquireResourceExclusiveLite( AfdResource, TRUE );
 
     if ( IrpSp->Parameters.DeviceIoControl.OutputBufferLength != 0 ) {
 
@@ -166,7 +166,7 @@ Return Value:
                     // The addresses are equal.  Fail the request.
                     //
 
-                    ExReleaseResource( AfdResource );
+                    ExReleaseResourceLite( AfdResource );
 
                     Irp->IoStatus.Information = 0;
                     Irp->IoStatus.Status = STATUS_SHARING_VIOLATION;
@@ -189,7 +189,7 @@ Return Value:
 
     if ( endpoint->LocalAddress == NULL ) {
 
-        ExReleaseResource( AfdResource );
+        ExReleaseResourceLite( AfdResource );
 
         Irp->IoStatus.Information = 0;
         Irp->IoStatus.Status = STATUS_INSUFFICIENT_RESOURCES;
@@ -206,7 +206,7 @@ Return Value:
         endpoint->LocalAddressLength
         );
 
-    ExReleaseResource( AfdResource );
+    ExReleaseResourceLite( AfdResource );
 
     //
     // Allocate memory to hold the EA buffer we'll use to specify the

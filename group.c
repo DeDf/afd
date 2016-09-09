@@ -195,30 +195,27 @@ Returns:
 --*/
 
 {
-
     PAFD_GROUP_ENTRY groupEntry;
     AFD_GROUP_TYPE groupType;
 
     groupEntry = AfdMapGroupToEntry( Group );
 
-    if( groupEntry != NULL ) {
-
+    if( groupEntry != NULL )
+    {
         groupType = groupEntry->GroupType;
 
         if( groupType == GroupTypeConstrained ||
-            groupType == GroupTypeUnconstrained ) {
-
+            groupType == GroupTypeUnconstrained )
+        {
             groupEntry->ReferenceCount++;
             *GroupType = groupType;
-
-        } else {
-
+        }
+        else
+        {
             groupEntry = NULL;
-
         }
 
         ExReleaseResourceLite( AfdGroupTableResource );
-
     }
 
     return (BOOLEAN)( groupEntry != NULL );
@@ -318,46 +315,38 @@ Return Value:
 --*/
 
 {
-
-    LONG groupValue;
+    LONG groupValue = *Group;
     PAFD_GROUP_ENTRY groupEntry;
     PAFD_GROUP_ENTRY newGroupTable;
     LONG newGroupTableSize;
-    LONG i;
     PLIST_ENTRY listEntry;
-
-    groupValue = *Group;
+    LONG i;
 
     //
     // Zero means "no group", so just ignore it.
     //
-
-    if( groupValue == 0 ) {
-
+    if( groupValue == 0 )
+    {
         *GroupType = GroupTypeNeither;
         return TRUE;
-
     }
 
     //
     // If we're being asked to create a new group, do it.
     //
-
     if( groupValue == SG_CONSTRAINED_GROUP ||
-        groupValue == SG_UNCONSTRAINED_GROUP ) {
-
+        groupValue == SG_UNCONSTRAINED_GROUP )
+    {
         //
         // Lock the table.
         //
-
         ExAcquireResourceExclusiveLite( AfdGroupTableResource, TRUE );
 
         //
         // See if there's room at the inn.
         //
-
-        if( IsListEmpty( &AfdFreeGroupList ) ) {
-
+        if( IsListEmpty( &AfdFreeGroupList ) )
+        {
             //
             // No room, we'll need to create/expand the table.
             //
@@ -455,13 +444,11 @@ Return Value:
 
         ExReleaseResourceLite( AfdGroupTableResource );
         return TRUE;
-
     }
 
     //
     // Otherwise, just reference the group.
     //
-
     return AfdReferenceGroup( groupValue, GroupType );
 
 }   // AfdGetGroup

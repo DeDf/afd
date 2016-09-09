@@ -97,7 +97,6 @@ Return Value:
     //
     // Validate the incoming group ID, allocate a new one if necessary.
     //
-
     if( !AfdGetGroup( &GroupID, &groupType ) )
     {
         return STATUS_INVALID_PARAMETER;
@@ -106,8 +105,7 @@ Return Value:
     //
     // Allocate a buffer to hold the endpoint structure.
     //
-
-    endpoint = AFD_ALLOCATE_POOL(
+    endpoint = ExAllocatePoolWithTag(
                    NonPagedPool,
                    sizeof(AFD_ENDPOINT),
                    AFD_ENDPOINT_POOL_TAG
@@ -128,7 +126,6 @@ Return Value:
     // Initialize the reference count to 2 -
     // one for the caller's reference, one for the active reference.
     //
-
     endpoint->ReferenceCount = 2;
 
     //
@@ -693,8 +690,8 @@ Return Value:
 
 
 PAFD_TRANSPORT_INFO
-AfdGetTransportInfo (
-    IN PUNICODE_STRING TransportDeviceName
+AfdGetTransportInfo (  // done!
+    IN PUNICODE_STRING pusTransportDeviceName
     )
 
 /*++
@@ -712,15 +709,15 @@ Arguments:
 
 Return Value:
 
-    None.
+    PAFD_TRANSPORT_INFO transportInfo.
 
 --*/
 
 {
-    PLIST_ENTRY listEntry;
     PAFD_TRANSPORT_INFO transportInfo;
-    ULONG structureLength;
     NTSTATUS status;
+    PLIST_ENTRY plistEntry;
+    ULONG structureLength;
     HANDLE controlChannel;
     OBJECT_ATTRIBUTES objectAttributes;
     IO_STATUS_BLOCK iosb;
@@ -729,33 +726,29 @@ Return Value:
     PAGED_CODE( );
 
     //
-    // First walk the list of transport device names looking for an
-    // identical name.
+    // First walk the list of transport device names looking for an identical name.
     //
+    ExAcquireResourceExclusiveLite( AfdResource, TRUE );
 
-    ExAcquireResourceExclusive( AfdResource, TRUE );
-
-    for ( listEntry = AfdTransportInfoListHead.Flink;
-          listEntry != &AfdTransportInfoListHead;
-          listEntry = listEntry->Flink ) {
-
+    for ( plistEntry = AfdTransportInfoListHead.Flink;
+          plistEntry != &AfdTransportInfoListHead;
+          plistEntry = plistEntry->Flink )
+    {
         transportInfo = CONTAINING_RECORD(
-                            listEntry,
+                            plistEntry,
                             AFD_TRANSPORT_INFO,
                             TransportInfoListEntry
                             );
 
         if ( RtlCompareUnicodeString(
                  &transportInfo->TransportDeviceName,
-                 TransportDeviceName,
-                 TRUE ) == 0 ) {
-
+                 pusTransportDeviceName,
+                 TRUE ) == 0 )
+        {
             //
-            // We found an exact match.  Return a pointer to the
-            // UNICODE_STRING field of this structure.
+            // We found an exact match.
             //
-
-            ExReleaseResource( AfdResource );
+            ExReleaseResourceLite( AfdResource );
             return transportInfo;
         }
     }
@@ -765,19 +758,18 @@ Return Value:
     // which we've never seen before.  Allocate a structure to hold the
     // new name and place the name on the global list.
     //
-
-
     structureLength = sizeof(AFD_TRANSPORT_INFO) +
-                          TransportDeviceName->Length + sizeof(WCHAR);
+                          pusTransportDeviceName->Length + sizeof(WCHAR);
 
-    transportInfo = AFD_ALLOCATE_POOL(
+    transportInfo = ExAllocatePoolWithTag(
                         NonPagedPool,
                         structureLength,
                         AFD_TRANSPORT_INFO_POOL_TAG
                         );
 
-    if ( transportInfo == NULL ) {
-        ExReleaseResource( AfdResource );
+    if ( transportInfo == NULL )
+    {
+        ExReleaseResourceLite( AfdResource );
         return NULL;
     }
 
@@ -785,17 +777,15 @@ Return Value:
     // Set up the IRP stack location information to query the TDI
     // provider information.
     //
-
     kernelQueryInfo.QueryType = TDI_QUERY_PROVIDER_INFORMATION;
     kernelQueryInfo.RequestConnectionInformation = NULL;
 
     //
     // Open a control channel to the TDI provider.
     //
-
     InitializeObjectAttributes(
         &objectAttributes,
-        TransportDeviceName,
+        pusTransportDeviceName,
         OBJ_CASE_INSENSITIVE,       // attributes
         NULL,
         NULL
@@ -814,9 +804,10 @@ Return Value:
                  NULL,
                  0
                  );
-    if ( !NT_SUCCESS(status) ) {
-        ExReleaseResource( AfdResource );
-        AFD_FREE_POOL(
+    if ( !NT_SUCCESS(status) )
+    {
+        ExReleaseResourceLite( AfdResource );
+        ExFreePoolWithTag(
             transportInfo,
             AFD_TRANSPORT_INFO_POOL_TAG
             );
@@ -826,7 +817,6 @@ Return Value:
     //
     // Get the TDI provider information for the transport.
     //
-
     status = AfdIssueDeviceControl(
                  controlChannel,
                  NULL,
@@ -836,9 +826,10 @@ Return Value:
                  sizeof(transportInfo->ProviderInfo),
                  TDI_QUERY_INFORMATION
                  );
-    if ( !NT_SUCCESS(status) ) {
-        ExReleaseResource( AfdResource );
-        AFD_FREE_POOL(
+    if ( !NT_SUCCESS(status) )
+    {
+        ExReleaseResourceLite( AfdResource );
+        ExFreePoolWithTag(
             transportInfo,
             AFD_TRANSPORT_INFO_POOL_TAG
             );
@@ -849,21 +840,19 @@ Return Value:
     //
     // Fill in the transport device name.
     //
-
     transportInfo->TransportDeviceName.MaximumLength =
-        TransportDeviceName->Length + sizeof(WCHAR);
+        pusTransportDeviceName->Length + sizeof(WCHAR);
     transportInfo->TransportDeviceName.Buffer =
         (PWSTR)(transportInfo + 1);
 
     RtlCopyUnicodeString(
         &transportInfo->TransportDeviceName,
-        TransportDeviceName
+        pusTransportDeviceName
         );
 
     //
     // Place the transport info structure on the global list.
     //
-
     InsertTailList(
         &AfdTransportInfoListHead,
         &transportInfo->TransportInfoListEntry
@@ -872,8 +861,7 @@ Return Value:
     //
     // Return the transport info structure to the caller.
     //
-
-    ExReleaseResource( AfdResource );
+    ExReleaseResourceLite( AfdResource );
     ZwClose( controlChannel );
 
     return transportInfo;

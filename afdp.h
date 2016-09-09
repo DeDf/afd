@@ -148,7 +148,6 @@ typedef unsigned short u_short;
 #define AFD_WORK_ITEM_POOL_TAG          ( (ULONG)'WdfA'                  )
 #endif
 #define AFD_CONTEXT_POOL_TAG            ( (ULONG)'XdfA' | PROTECTED_POOL )
-#define MyFreePoolWithTag(a,t) ExFreePoolWithTag(a,t)
 
 #else
 
@@ -215,9 +214,11 @@ extern ULONG AfdLocksAcquired;
 #define AFD_DEBUG_POLL              0x00001000
 #define AFD_DEBUG_FAST_IO           0x00002000
 
+#define AFD_ALLOCATE_POOL(a,b,t) ExAllocatePoolWithTag(a,b,t)
+#define AFD_FREE_POOL(a,t) ExFreePoolWithTag(a,t) 
+
 #define DEBUG
 
-#define AFD_ALLOCATE_POOL(a,b,t) AfdAllocatePool( a,b,t,__FILE__,__LINE__,FALSE )
 #define AFD_ALLOCATE_POOL_WITH_QUOTA(a,b,t) AfdAllocatePool( a,b,t,__FILE__,__LINE__,TRUE )
 PVOID
 AfdAllocatePool (
@@ -229,7 +230,6 @@ AfdAllocatePool (
     IN BOOLEAN WithQuota
     );
 
-#define AFD_FREE_POOL(a,t) AfdFreePool(a,t)
 VOID
 AfdFreePool (
     IN PVOID Pointer,
@@ -301,9 +301,7 @@ AfdAssert(
 #define IF_DEBUG(a) if (FALSE)
 #define DEBUG if ( FALSE )
 
-#define AFD_ALLOCATE_POOL(a,b,t) ExAllocatePoolWithTag(a,b,t)
 #define AFD_ALLOCATE_POOL_WITH_QUOTA(a,b,t) ExAllocatePoolWithQuotaTag(a,b,t)
-#define AFD_FREE_POOL(a,t) MyFreePoolWithTag(a,t)
 
 #define AfdIoCallDriver(a,b,c) AfdIoCallDriverFree(a,b,c)
 #define AfdCompleteOutstandingIrp(a,b) AfdCompleteOutstandingIrpFree(a,b)

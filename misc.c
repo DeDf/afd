@@ -276,7 +276,7 @@ Return Value:
     // operation.
     //
 
-    ExAcquireResourceExclusive( AfdResource, TRUE );
+    ExAcquireResourceExclusiveLite( AfdResource, TRUE );
 
     InterlockedIncrement(
         &AfdEndpointsOpened
@@ -329,7 +329,7 @@ Return Value:
     // Release the lock and return.
     //
 
-    ExReleaseResource( AfdResource );
+    ExReleaseResourceLite( AfdResource );
 
     return;
 
@@ -367,7 +367,7 @@ Return Value:
     // operation.
     //
 
-    ExAcquireResourceExclusive( AfdResource, TRUE );
+    ExAcquireResourceExclusiveLite( AfdResource, TRUE );
 
     InterlockedIncrement(
         &AfdEndpointsClosed
@@ -425,7 +425,7 @@ Return Value:
     // Release the lock and return.
     //
 
-    ExReleaseResource( AfdResource );
+    ExReleaseResourceLite( AfdResource );
 
     return;
 
@@ -448,7 +448,7 @@ AfdUnlockDriver (
     // operation.
     //
 
-    ExAcquireResourceExclusive( AfdResource, TRUE );
+    ExAcquireResourceExclusiveLite( AfdResource, TRUE );
 
     //
     // Test whether the endpoint list remains empty.  If it is still
@@ -467,7 +467,7 @@ AfdUnlockDriver (
         MmPageEntireDriver( DriverEntry );
     }
 
-    ExReleaseResource( AfdResource );
+    ExReleaseResourceLite( AfdResource );
 
 } // AfdUnlockDriver
 
@@ -4425,7 +4425,7 @@ Return Value:
 
     }
 
-    ExReleaseResource( AfdResource );
+    ExReleaseResourceLite( AfdResource );
     AfdDereferenceGroup( validateInfo->GroupID );
 
     if( !result ) {
