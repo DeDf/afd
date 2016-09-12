@@ -43,7 +43,7 @@ AfdGetTransportInfo (
 
 
 NTSTATUS
-AfdAllocateEndpoint (
+AfdAllocateEndpoint (  // done!
     OUT PAFD_ENDPOINT * NewEndpoint,
     IN PUNICODE_STRING pusTransportDeviceName,
     IN LONG GroupID

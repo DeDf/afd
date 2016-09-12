@@ -80,7 +80,7 @@ AfdMapGroupToEntry(
 
 
 BOOLEAN
-AfdInitializeGroup(
+AfdInitializeGroup(  // done!
     VOID
     )
 
@@ -101,17 +101,15 @@ Return Value:
     //
     // Initialize the group globals.
     //
-
-    AfdGroupTableResource = AFD_ALLOCATE_POOL(
+    AfdGroupTableResource = ExAllocatePoolWithTag(
                                 NonPagedPool,
                                 sizeof(*AfdGroupTableResource),
                                 AFD_RESOURCE_POOL_TAG
                                 );
 
-    if( AfdGroupTableResource == NULL ) {
-
+    if( AfdGroupTableResource == NULL )
+    {
         return FALSE;
-
     }
 
     ExInitializeResourceLite( AfdGroupTableResource );
@@ -126,7 +124,7 @@ Return Value:
 
 
 VOID
-AfdTerminateGroup(
+AfdTerminateGroup(  // done!
     VOID
     )
 
@@ -139,29 +137,26 @@ Routine Description:
 --*/
 
 {
-
-    if( AfdGroupTableResource != NULL ) {
-
+    if( AfdGroupTableResource != NULL )
+    {
         ExDeleteResourceLite( AfdGroupTableResource );
 
-        AFD_FREE_POOL(
+        ExFreePoolWithTag(
             AfdGroupTableResource,
             AFD_RESOURCE_POOL_TAG
             );
 
         AfdGroupTableResource = NULL;
-
     }
 
-    if( AfdGroupTable != NULL ) {
-
-        AFD_FREE_POOL(
+    if( AfdGroupTable != NULL )
+    {
+        ExFreePoolWithTag(
             AfdGroupTable,
             AFD_GROUP_POOL_TAG
             );
 
         AfdGroupTable = NULL;
-
     }
 
     InitializeListHead( &AfdFreeGroupList );
@@ -171,7 +166,7 @@ Routine Description:
 
 
 BOOLEAN
-AfdReferenceGroup(
+AfdReferenceGroup(  // done!
     IN LONG Group,
     OUT PAFD_GROUP_TYPE GroupType
     )
@@ -195,14 +190,11 @@ Returns:
 --*/
 
 {
-    PAFD_GROUP_ENTRY groupEntry;
-    AFD_GROUP_TYPE groupType;
-
-    groupEntry = AfdMapGroupToEntry( Group );
+    PAFD_GROUP_ENTRY groupEntry = AfdMapGroupToEntry( Group );
 
     if( groupEntry != NULL )
     {
-        groupType = groupEntry->GroupType;
+        AFD_GROUP_TYPE groupType = groupEntry->GroupType;
 
         if( groupType == GroupTypeConstrained ||
             groupType == GroupTypeUnconstrained )
@@ -224,7 +216,7 @@ Returns:
 
 
 BOOLEAN
-AfdDereferenceGroup(
+AfdDereferenceGroup(  // done!
     IN LONG Group
     )
 
@@ -252,33 +244,30 @@ Returns:
 
     groupEntry = AfdMapGroupToEntry( Group );
 
-    if( groupEntry != NULL ) {
-
+    if( groupEntry != NULL )
+    {
         groupType = groupEntry->GroupType;
 
         if( groupType == GroupTypeConstrained ||
-            groupType == GroupTypeUnconstrained ) {
-
+            groupType == GroupTypeUnconstrained )
+        {
             ASSERT( groupEntry->ReferenceCount > 0 );
             groupEntry->ReferenceCount--;
 
-            if( groupEntry->ReferenceCount == 0 ) {
-
+            if( groupEntry->ReferenceCount == 0 )
+            {
                 InsertTailList(
                     &AfdFreeGroupList,
                     &groupEntry->ListEntry
                     );
-
             }
-
-        } else {
-
+        }
+        else
+        {
             groupEntry = NULL;
-
         }
 
         ExReleaseResourceLite( AfdGroupTableResource );
-
     }
 
     return (BOOLEAN)( groupEntry != NULL );
@@ -287,7 +276,7 @@ Returns:
 
 
 BOOLEAN
-AfdGetGroup(
+AfdGetGroup(  // done!
     IN OUT PLONG Group,
     OUT PAFD_GROUP_TYPE GroupType
     )
@@ -296,11 +285,10 @@ AfdGetGroup(
 
 Routine Description:
 
-    Examines the incoming group. If is zero, then nothing is done. If it
-    is SG_CONSTRAINED_GROUP, then a new constrained group ID is created.
-    If it is SG_UNCONSTRAINED_GROUP, then a new unconstrained group ID is
-    created. Otherwise, it must identify an existing group, so that group
-    is referenced.
+    Examines the incoming group. If is zero, then nothing is done. 
+    If it is SG_CONSTRAINED_GROUP,   then a new   constrained group ID is created.
+    If it is SG_UNCONSTRAINED_GROUP, then a new unconstrained group ID is created.
+    Otherwise, it must identify an existing group, so that group is referenced.
 
 Arguments:
 
@@ -318,14 +306,10 @@ Return Value:
     LONG groupValue = *Group;
     PAFD_GROUP_ENTRY groupEntry;
     PAFD_GROUP_ENTRY newGroupTable;
-    LONG newGroupTableSize;
     PLIST_ENTRY listEntry;
     LONG i;
 
-    //
-    // Zero means "no group", so just ignore it.
-    //
-    if( groupValue == 0 )
+    if( groupValue == 0 )  // Zero means "no group", so just ignore it.
     {
         *GroupType = GroupTypeNeither;
         return TRUE;
@@ -337,95 +321,80 @@ Return Value:
     if( groupValue == SG_CONSTRAINED_GROUP ||
         groupValue == SG_UNCONSTRAINED_GROUP )
     {
-        //
-        // Lock the table.
-        //
         ExAcquireResourceExclusiveLite( AfdGroupTableResource, TRUE );
 
-        //
-        // See if there's room at the inn.
-        //
         if( IsListEmpty( &AfdFreeGroupList ) )
         {
             //
             // No room, we'll need to create/expand the table.
             //
+            LONG newGroupTableSize =
+                AfdGroupTableSize + AFD_GROUP_TABLE_GROWTH;
 
-            newGroupTableSize = AfdGroupTableSize + AFD_GROUP_TABLE_GROWTH;
-
-            newGroupTable = AFD_ALLOCATE_POOL(
+            newGroupTable = ExAllocatePoolWithTag(
                                 PagedPool,
                                 newGroupTableSize * sizeof(AFD_GROUP_ENTRY),
                                 AFD_GROUP_POOL_TAG
                                 );
 
-            if( newGroupTable == NULL ) {
-
+            if( newGroupTable == NULL )
+            {
                 ExReleaseResourceLite( AfdGroupTableResource );
                 return FALSE;
-
             }
 
-            if( AfdGroupTable == NULL ) {
-
+            if( AfdGroupTable == NULL )
+            {
                 //
-                // This is the initial table allocation, so reserve the
-                // first three entries (0, SG_UNCONSTRAINED_GROUP, and
-                // SG_CONSTRAINED_GROUP).
+                // This is the initial table allocation,
+                // so reserve the first three entries.
+                // (0, SG_UNCONSTRAINED_GROUP, and SG_CONSTRAINED_GROUP).
                 //
 
                 for( ;
                      AfdGroupTableSize <= SG_CONSTRAINED_GROUP ||
                      AfdGroupTableSize <= SG_UNCONSTRAINED_GROUP ;
-                     AfdGroupTableSize++ ) {
-
+                     AfdGroupTableSize++ )
+                {
                     newGroupTable[AfdGroupTableSize].ReferenceCount = 0;
                     newGroupTable[AfdGroupTableSize].GroupType = GroupTypeNeither;
-
                 }
-
-            } else {
-
+            }
+            else
+            {
                 //
-                // Copy the old table into the new table, then free the
-                // old table.
+                // Copy the old table into the new table, then free the old table.
                 //
-
                 RtlCopyMemory(
                     newGroupTable,
                     AfdGroupTable,
                     AfdGroupTableSize * sizeof(AFD_GROUP_ENTRY)
                     );
 
-                AFD_FREE_POOL(
+                ExFreePoolWithTag(
                     AfdGroupTable,
                     AFD_GROUP_POOL_TAG
                     );
-
             }
 
             //
             // Add the new entries to the free list.
             //
-
-            for( i = newGroupTableSize - 1 ; i >= AfdGroupTableSize ; i-- ) {
-
+            for( i = newGroupTableSize - 1 ; i >= AfdGroupTableSize ; i-- )
+            {
                 InsertHeadList(
                     &AfdFreeGroupList,
                     &newGroupTable[i].ListEntry
                     );
-
             }
 
             AfdGroupTable = newGroupTable;
             AfdGroupTableSize = newGroupTableSize;
-
         }
 
         //
         // Pull the next free entry off the list.
         //
-
         ASSERT( !IsListEmpty( &AfdFreeGroupList ) );
 
         listEntry = RemoveHeadList( &AfdFreeGroupList );
@@ -455,7 +424,7 @@ Return Value:
 
 
 PAFD_GROUP_ENTRY
-AfdMapGroupToEntry(
+AfdMapGroupToEntry(  // done!
     IN LONG Group
     )
 
@@ -485,15 +454,13 @@ Return Value:
     //
     // Lock the table.
     //
-
     ExAcquireResourceExclusiveLite( AfdGroupTableResource, TRUE );
 
     //
     // Validate the group ID.
     //
-
-    if( Group > 0 && Group < AfdGroupTableSize ) {
-
+    if( Group > 0 && Group < AfdGroupTableSize )
+    {
         groupEntry = AfdGroupTable + Group;
 
         //
@@ -505,18 +472,15 @@ Return Value:
         //
 
         if( groupEntry->GroupType == GroupTypeConstrained ||
-            groupEntry->GroupType == GroupTypeUnconstrained ) {
-
+            groupEntry->GroupType == GroupTypeUnconstrained )
+        {
             return groupEntry;
-
         }
-
     }
 
     //
     // Invalid group ID, fail it.
     //
-
     ExReleaseResourceLite( AfdGroupTableResource );
     return NULL;
 

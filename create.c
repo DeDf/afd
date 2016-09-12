@@ -210,7 +210,7 @@ Return Value:
         }
     }
 
-    if ( IS_DGRAM_ENDPOINT(endpoint) )
+    if ( endpoint->EndpointType == AfdEndpointTypeDatagram )
     {
         if ( eaBuffer == NULL )
         {

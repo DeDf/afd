@@ -272,33 +272,25 @@ Return Value:
     PAGED_CODE( );
 
     //
-    // Acquire a lock which prevents other threads from performing this
-    // operation.
+    // Acquire a lock which prevents other threads from performing this operation.
     //
-
     ExAcquireResourceExclusiveLite( AfdResource, TRUE );
 
-    InterlockedIncrement(
-        &AfdEndpointsOpened
-        );
+    InterlockedIncrement( &AfdEndpointsOpened );
 
     //
     // If the list of endpoints is empty, do some allocations.
     //
-
-    if ( IsListEmpty( &AfdEndpointListHead ) ) {
-
+    if ( IsListEmpty( &AfdEndpointListHead ) )
+    {
         //
         // Tell MM to revert to normal paging semantics.
         //
-
         MmResetDriverPaging( DriverEntry );
 
         //
-        // Lock down the AFD section that cannot be pagable if any
-        // sockets are open.
+        // Lock down the AFD section that cannot be pagable if any sockets are open.
         //
-
         ASSERT( AfdDiscardableCodeHandle == NULL );
 
         AfdDiscardableCodeHandle = MmLockPagableCodeSection( AfdGetBuffer );
@@ -310,14 +302,14 @@ Return Value:
     //
     // Add the endpoint to the list(s).
     //
-
     ExInterlockedInsertHeadList(
         &AfdEndpointListHead,
         &Endpoint->GlobalEndpointListEntry,
         &AfdSpinLock
         );
 
-    if( Endpoint->GroupType == GroupTypeConstrained ) {
+    if( Endpoint->GroupType == GroupTypeConstrained )
+    {
         ExInterlockedInsertHeadList(
             &AfdConstrainedEndpointListHead,
             &Endpoint->ConstrainedEndpointListEntry,
@@ -328,7 +320,6 @@ Return Value:
     //
     // Release the lock and return.
     //
-
     ExReleaseResourceLite( AfdResource );
 
     return;
