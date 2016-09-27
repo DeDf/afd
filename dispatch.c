@@ -34,7 +34,6 @@ AfdDispatchDeviceControl (
 //
 // Lookup table to verify incoming IOCTL codes.
 //
-
 ULONG AfdIoctlTable[] =
         {
             IOCTL_AFD_BIND,

@@ -138,7 +138,6 @@ DriverEntry (  // done!
 {
     NTSTATUS status;
     UNICODE_STRING deviceName;
-    BOOLEAN success;
     ULONG i;
 
     PAGED_CODE( );
@@ -158,8 +157,8 @@ DriverEntry (  // done!
                  &AfdDeviceObject                // DeviceObject
                  );
 
-
-    if ( !NT_SUCCESS(status) ) {
+    if ( !NT_SUCCESS(status) )
+    {
         KdPrint(( "AFD DriverEntry: unable to create device object: %X\n", status ));
         return status;
     }
@@ -169,7 +168,8 @@ DriverEntry (  // done!
     //
     status = AfdCreateRawSecurityDescriptor();
 
-    if (!NT_SUCCESS(status)) {
+    if (!NT_SUCCESS(status))
+    {
         IoDeleteDevice(AfdDeviceObject);
         return status;
     }
@@ -179,8 +179,8 @@ DriverEntry (  // done!
     //
     // Initialize the driver object for this file system driver.
     //
-
-    for (i = 0; i <= IRP_MJ_MAXIMUM_FUNCTION; i++) {
+    for (i = 0; i <= IRP_MJ_MAXIMUM_FUNCTION; i++)
+    {
         DriverObject->MajorFunction[i] = AfdDispatch;
     }
 
@@ -190,9 +190,8 @@ DriverEntry (  // done!
     //
     // Initialize global data.
     //
-
-    success = AfdInitializeData( );
-    if ( !success ) {
+    if ( !AfdInitializeData() )
+    {
         IoDeleteDevice(AfdDeviceObject);
         return STATUS_INSUFFICIENT_RESOURCES;
     }
@@ -200,9 +199,8 @@ DriverEntry (  // done!
     //
     // Initialize group ID manager.
     //
-
-    success = AfdInitializeGroup();
-    if ( !success ) {
+    if ( !AfdInitializeGroup() )
+    {
         IoDeleteDevice(AfdDeviceObject);
         return STATUS_INSUFFICIENT_RESOURCES;
     }
